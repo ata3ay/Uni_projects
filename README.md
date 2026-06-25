@@ -1,4 +1,4 @@
-# Dinmukhamed Atabay portfolio
+# TU Graz projects
 
 This repository contains my academic and personal programming projects.
 For clarity, all projects are grouped into three categories.
