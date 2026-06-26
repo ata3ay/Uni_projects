@@ -1,0 +1,823 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.9.37">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>forecast</title>
+<style>
+/* Default styles provided by pandoc.
+** See https://pandoc.org/MANUAL.html#variables-for-html for config info.
+*/
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+</style>
+
+
+<script src="forecast_files/libs/clipboard/clipboard.min.js"></script>
+<script src="forecast_files/libs/quarto-html/quarto.js" type="module"></script>
+<script src="forecast_files/libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="forecast_files/libs/quarto-html/popper.min.js"></script>
+<script src="forecast_files/libs/quarto-html/tippy.umd.min.js"></script>
+<script src="forecast_files/libs/quarto-html/anchor.min.js"></script>
+<link href="forecast_files/libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="forecast_files/libs/quarto-html/quarto-syntax-highlighting-7f8f88aac4f3542376d5c11b86a4c14d.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="forecast_files/libs/bootstrap/bootstrap.min.js"></script>
+<link href="forecast_files/libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="forecast_files/libs/bootstrap/bootstrap-efbb37e9afcc02144ebbc7afd12a776f.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script defer="" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN" && texText && texText.data) {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+</head>
+
+<body class="fullcontent quarto-light">
+
+<div id="quarto-content" class="page-columns page-rows-contents page-layout-article">
+
+<main class="content" id="quarto-document-content">
+
+
+
+
+<div style="text-align: center; margin-top: 80px; margin-bottom: 80px;">
+<h1>
+Forecasting Industrial Production Using FRED-MD Data
+</h1>
+<p>
+<strong>Dinmukhamed Atabay</strong>
+</p>
+</div>
+<section id="data-description" class="level1" data-number="1">
+<h1 data-number="1"><span class="header-section-number">1</span> Data Description</h1>
+<p>The dataset used in this project is the FRED-MD database, a large monthly macroeconomic dataset containing 126 U.S. macroeconomic and financial variables. The dataset includes indicators related to industrial production, employment, prices, interest rates, money, credit, and financial markets.</p>
+<p>The target variable is <code>INDPRO</code>, the Industrial Production Index. It measures real output in the manufacturing, mining, and utilities sectors of the U.S. economy. Since industrial production in levels usually follows a trend over time, the target variable is transformed into a stationary growth-rate series using the first difference of the logarithm:</p>
+<p><span class="math display">\[
+w_t = \log(INDPRO_t) - \log(INDPRO_{t-1})
+\]</span></p>
+<p>This transformed variable represents the monthly growth rate of industrial production and is used as the dependent variable in the forecasting models.</p>
+</section>
+<section id="data-cleaning-and-preprocessing" class="level1" data-number="2">
+<h1 data-number="2"><span class="header-section-number">2</span> Data Cleaning and Preprocessing</h1>
+<section id="covid-19-period-removal" class="level2" data-number="2.1">
+<h2 data-number="2.1" class="anchored" data-anchor-id="covid-19-period-removal"><span class="header-section-number">2.1</span> COVID-19 Period Removal</h2>
+<p>Observations from January 2020 to July 2020 are removed from the dataset. This period contains large pandemic-related shocks and structural breaks. These observations are not representative of normal macroeconomic dynamics and may distort model estimation and forecast evaluation.</p>
+</section>
+<section id="outlier-treatment" class="level2" data-number="2.2">
+<h2 data-number="2.2" class="anchored" data-anchor-id="outlier-treatment"><span class="header-section-number">2.2</span> Outlier Treatment</h2>
+<p>Outliers are removed using a robust interquartile range rule. For each numeric variable, values more than ten times the interquartile range away from the median are replaced by missing values. This conservative threshold removes only extremely abnormal observations while keeping regular macroeconomic variation in the dataset.</p>
+</section>
+<section id="missing-value-treatment" class="level2" data-number="2.3">
+<h2 data-number="2.3" class="anchored" data-anchor-id="missing-value-treatment"><span class="header-section-number">2.3</span> Missing Value Treatment</h2>
+<p>Missing values are handled using a sequential procedure. First, linear interpolation is applied. Then, remaining missing values are filled using forward fill and backward fill. Finally, any remaining missing values are replaced by the mean of the corresponding variable.</p>
+<div class="cell">
+<div class="cell-output-display">
+<table class="caption-top table table-sm table-striped small">
+<caption>Missing value treatment procedure.</caption>
+<thead>
+<tr class="header">
+<th style="text-align: right;">Step</th>
+<th style="text-align: left;">Method</th>
+<th style="text-align: left;">Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: right;">1</td>
+<td style="text-align: left;">Linear interpolation</td>
+<td style="text-align: left;">Fill gaps between observed values</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">2</td>
+<td style="text-align: left;">Forward fill</td>
+<td style="text-align: left;">Use the last available observation</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">3</td>
+<td style="text-align: left;">Backward fill</td>
+<td style="text-align: left;">Use the next available observation</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">4</td>
+<td style="text-align: left;">Mean imputation</td>
+<td style="text-align: left;">Replace any remaining missing values</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+<section id="transformation-to-stationarity" class="level2" data-number="2.4">
+<h2 data-number="2.4" class="anchored" data-anchor-id="transformation-to-stationarity"><span class="header-section-number">2.4</span> Transformation to Stationarity</h2>
+<p>The raw <code>INDPRO</code> series is transformed into the log-difference series <code>w</code>. This removes the long-run trend and makes the target variable more suitable for time-series forecasting.</p>
+<div class="cell">
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="forecast_files/figure-html/acf-plot-1.png" class="img-fluid figure-img" width="672"></p>
+<figcaption>ACF comparison of raw and transformed INDPRO.</figcaption>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="standardization" class="level2" data-number="2.5">
+<h2 data-number="2.5" class="anchored" data-anchor-id="standardization"><span class="header-section-number">2.5</span> Standardization</h2>
+<p>All predictors are centered and standardized before estimation. The target variable is also standardized. This is important because the predictors are measured on different scales. Standardization improves numerical stability and makes penalized regression methods such as Ridge and Lasso more reliable.</p>
+</section>
+</section>
+<section id="training-and-test-sample" class="level1" data-number="3">
+<h1 data-number="3"><span class="header-section-number">3</span> Training and Test Sample</h1>
+<p>The initial training sample contains the first 524 observations after cleaning and transformation. The remaining observations are used for out-of-sample forecast evaluation. Forecasts are produced using an expanding-window procedure. In each step, the model is re-estimated using all data available up to that point, and a one-step-ahead forecast is produced for the next period.</p>
+</section>
+<section id="forecasting-methods" class="level1" data-number="4">
+<h1 data-number="4"><span class="header-section-number">4</span> Forecasting Methods</h1>
+<section id="ar1" class="level2" data-number="4.1">
+<h2 data-number="4.1" class="anchored" data-anchor-id="ar1"><span class="header-section-number">4.1</span> AR(1)</h2>
+<p>The AR(1) model uses only the first lag of the target variable:</p>
+<p><span class="math display">\[
+y_t = \alpha + \beta y_{t-1} + \varepsilon_t
+\]</span></p>
+<p>The number of lags is set to one because the project focuses on one-step-ahead forecasting and uses a simple autoregressive benchmark.</p>
+</section>
+<section id="random-walk" class="level2" data-number="4.2">
+<h2 data-number="4.2" class="anchored" data-anchor-id="random-walk"><span class="header-section-number">4.2</span> Random Walk</h2>
+<p>A random walk is a simple benchmark where the best forecast for the next period is the current value. In this project, the main simple benchmark is the AR(1) model, which is a more flexible version because it estimates the persistence parameter instead of fixing it equal to one.</p>
+</section>
+<section id="ols" class="level2" data-number="4.3">
+<h2 data-number="4.3" class="anchored" data-anchor-id="ols"><span class="header-section-number">4.3</span> OLS</h2>
+<p>The OLS model uses all lagged standardized predictors from the FRED-MD dataset:</p>
+<p><span class="math display">\[
+y_t = \alpha + X_{t-1}\beta + \varepsilon_t
+\]</span></p>
+<p>This model can use many macroeconomic variables, but it may overfit because the number of predictors is large.</p>
+</section>
+<section id="ridge-regression" class="level2" data-number="4.4">
+<h2 data-number="4.4" class="anchored" data-anchor-id="ridge-regression"><span class="header-section-number">4.4</span> Ridge Regression</h2>
+<p>Ridge regression adds an L2 penalty to the regression coefficients:</p>
+<p><span class="math display">\[
+\min_\beta \|y - X\beta\|^2 + \lambda \|\beta\|^2
+\]</span></p>
+<p>The penalty parameter is selected using the Bayesian Information Criterion over a grid of candidate values.</p>
+</section>
+<section id="lasso-regression" class="level2" data-number="4.5">
+<h2 data-number="4.5" class="anchored" data-anchor-id="lasso-regression"><span class="header-section-number">4.5</span> Lasso Regression</h2>
+<p>Lasso regression adds an L1 penalty:</p>
+<p><span class="math display">\[
+\min_\beta \|y - X\beta\|^2 + \lambda \|\beta\|_1
+\]</span></p>
+<p>This method can shrink some coefficients exactly to zero and therefore performs variable selection. In the code, the penalty parameter is selected using the BIC criterion.</p>
+</section>
+<section id="principal-component-regression" class="level2" data-number="4.6">
+<h2 data-number="4.6" class="anchored" data-anchor-id="principal-component-regression"><span class="header-section-number">4.6</span> Principal Component Regression</h2>
+<p>Principal Component Regression (PCR) reduces the high-dimensional predictor matrix to a smaller set of common factors. These factors are extracted using Singular Value Decomposition (SVD) and summarize the information contained in the large number of correlated macroeconomic variables.</p>
+<p>The number of principal components is selected using the Bayesian Information Criterion (BIC) over candidate values (r = 1, , 20). For each value of (r), a forecasting regression is estimated and its BIC is computed. The number of factors that minimizes the BIC is selected and used in the final forecasting model.</p>
+<p>The forecasting equation is given by</p>
+<p><span class="math display">\[
+y_t = \alpha + F_{t-1}\beta + \varepsilon_t,
+\]</span></p>
+<p>where (F_{t-1}) denotes the selected principal components extracted from the predictor matrix.</p>
+</section>
+</section>
+<section id="results" class="level1" data-number="5">
+<h1 data-number="5"><span class="header-section-number">5</span> Results</h1>
+<section id="principal-component-selection" class="level2" data-number="5.1">
+<h2 data-number="5.1" class="anchored" data-anchor-id="principal-component-selection"><span class="header-section-number">5.1</span> Principal Component Selection</h2>
+<p>The scree plot shows how much variation is explained by the first principal components.</p>
+<div class="cell">
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="forecast_files/figure-html/scree-plot-1.png" class="img-fluid figure-img" width="672"></p>
+<figcaption>Scree plot of the first 20 principal components, fig.width=5.5, fig.height=4</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<p>The next figure shows the BIC values for different numbers of principal components. The number of factors with the lowest BIC is selected for the PCA regression.</p>
+<div class="cell">
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="forecast_files/figure-html/bic-plot-1.png" class="img-fluid figure-img" width="528"></p>
+<figcaption>BIC selection for the number of PCA factors.</figcaption>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="one-step-ahead-forecasts" class="level2" data-number="5.2">
+<h2 data-number="5.2" class="anchored" data-anchor-id="one-step-ahead-forecasts"><span class="header-section-number">5.2</span> One-Step-Ahead Forecasts</h2>
+<div class="cell">
+<div class="cell-output-display">
+<table class="caption-top table table-sm table-striped small">
+<caption>One-step-ahead forecasts for transformed INDPRO growth and INDPRO level.</caption>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Model</th>
+<th style="text-align: right;">Forecast_w</th>
+<th style="text-align: right;">Forecast_INDPRO_level</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">AR(1)</td>
+<td style="text-align: right;">0.002005</td>
+<td style="text-align: right;">90.81925</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">OLS</td>
+<td style="text-align: right;">0.003173</td>
+<td style="text-align: right;">90.92537</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">Ridge BIC</td>
+<td style="text-align: right;">0.002161</td>
+<td style="text-align: right;">90.83336</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">Lasso BIC</td>
+<td style="text-align: right;">0.002784</td>
+<td style="text-align: right;">90.89002</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">PCA Regression</td>
+<td style="text-align: right;">0.001044</td>
+<td style="text-align: right;">90.73194</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+<section id="root-mean-squared-errors" class="level2" data-number="5.3">
+<h2 data-number="5.3" class="anchored" data-anchor-id="root-mean-squared-errors"><span class="header-section-number">5.3</span> Root Mean Squared Errors</h2>
+<p>Forecast accuracy is evaluated using Root Mean Squared Error:</p>
+<p><span class="math display">\[
+RMSE = \sqrt{\frac{1}{H}\sum_{t=1}^{H}(y_t - \hat{y}_t)^2}
+\]</span></p>
+<p>A lower RMSE means better out-of-sample forecasting performance.</p>
+<div class="cell">
+<div class="cell-output-display">
+<table class="caption-top table table-sm table-striped small">
+<caption>RMSE comparison for transformed INDPRO growth.</caption>
+<thead>
+<tr class="header">
+<th style="text-align: left;"></th>
+<th style="text-align: left;">Model</th>
+<th style="text-align: right;">RMSE_w</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">3</td>
+<td style="text-align: left;">Ridge BIC</td>
+<td style="text-align: right;">0.007751</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">4</td>
+<td style="text-align: left;">Lasso BIC</td>
+<td style="text-align: right;">0.008093</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">5</td>
+<td style="text-align: left;">PCA Regression</td>
+<td style="text-align: right;">0.008378</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">1</td>
+<td style="text-align: left;">AR(1)</td>
+<td style="text-align: right;">0.008491</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">2</td>
+<td style="text-align: left;">OLS</td>
+<td style="text-align: right;">0.012639</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<div class="cell">
+<div class="cell-output-display">
+<table class="caption-top table table-sm table-striped small">
+<caption>RMSE comparison for INDPRO levels.</caption>
+<thead>
+<tr class="header">
+<th style="text-align: left;"></th>
+<th style="text-align: left;">Model</th>
+<th style="text-align: right;">RMSE_INDPRO</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">3</td>
+<td style="text-align: left;">Ridge BIC</td>
+<td style="text-align: right;">0.754754</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">4</td>
+<td style="text-align: left;">Lasso BIC</td>
+<td style="text-align: right;">0.786053</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">5</td>
+<td style="text-align: left;">PCA Regression</td>
+<td style="text-align: right;">0.813868</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">1</td>
+<td style="text-align: left;">AR(1)</td>
+<td style="text-align: right;">0.825792</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">2</td>
+<td style="text-align: left;">OLS</td>
+<td style="text-align: right;">1.255582</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</section>
+<section id="forecast-comparison-graphs" class="level2" data-number="5.4">
+<h2 data-number="5.4" class="anchored" data-anchor-id="forecast-comparison-graphs"><span class="header-section-number">5.4</span> Forecast Comparison Graphs</h2>
+<p>The following graph compares actual and forecasted values for the transformed target variable.</p>
+<div class="cell">
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="forecast_files/figure-html/forecast-w-plot-1.png" class="img-fluid figure-img" width="672"></p>
+<figcaption>Expanding-window forecasts compared with actual transformed INDPRO growth.</figcaption>
+</figure>
+</div>
+</div>
+</div>
+<p>The next graph compares the forecasts after converting them back to the INDPRO level.</p>
+<div class="cell">
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="forecast_files/figure-html/forecast-level-plot-1.png" class="img-fluid figure-img" width="672"></p>
+<figcaption>Expanding-window forecasts compared with actual INDPRO level.</figcaption>
+</figure>
+</div>
+</div>
+</div>
+</section>
+</section>
+<section id="discussion-of-results" class="level1" data-number="6">
+<h1 data-number="6"><span class="header-section-number">6</span> Discussion of Results</h1>
+<p>The results compare simple autoregressive forecasting, unrestricted regression, regularized regression, and factor-based regression. The best method is the one with the lowest RMSE in the out-of-sample evaluation. Regularized methods such as Ridge and Lasso are expected to perform well in this setting because the dataset contains many correlated macroeconomic predictors. These methods reduce overfitting by shrinking coefficient estimates.</p>
+<p>Principal Component Regression is also useful because it summarizes the information in many predictors into a smaller number of common factors. This can improve forecast stability when many variables share similar macroeconomic movements.</p>
+<p>OLS may perform worse because it estimates many coefficients without regularization. In high-dimensional macroeconomic data, this can lead to unstable estimates and poor out-of-sample forecasts. The AR(1) benchmark is simpler and often competitive because industrial production growth is persistent, but it does not use the additional information contained in the FRED-MD predictors.</p>
+<p>Overall, the preferred model is the one ranked first in the RMSE table. This method provides the most accurate out-of-sample forecasts for industrial production in this forecasting exercise.</p>
+</section>
+
+</main>
+<!-- /main column -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+      const outerScaffold = trigger.parentElement.cloneNode(true);
+      const codeEl = outerScaffold.querySelector('code');
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</div> <!-- /content -->
+
+
+
+
+</body></html>
