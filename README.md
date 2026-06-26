@@ -11,27 +11,25 @@ This folder includes **C programming projects** developed during my studies at *
 All source files are stored directly in this repository.
 
 ### Examples of projects:
-- `blackjack.c` — Blackjack game using dynamic memory, structs, enums, and file I/O  
-- `cinema_project.c` — Cinema booking system  
-- `image_structuring_program.c` — Image processing with BMP structures  
-- `stringtango.c` — Text editor project with dynamic memory management  
-- `password_validator.c` — String and pointer-based validation logic  
+- `blackjack.c` — Blackjack game using dynamic memory, structs, enums, and file I/O
+- `cinema_project.c` — Cinema booking system
+- `image_structuring_program.c` — Image processing with BMP structures
+- `stringtango.c` — Text editor project with dynamic memory management
+- `password_validator.c` — String and pointer-based validation logic
 
 These projects demonstrate:
-- structured programming in C  
-- dynamic memory management  
-- pointers, arrays, structs, enums  
-- file input/output  
+- structured programming in C
+- dynamic memory management
+- pointers, arrays, structs, enums
+- file input/output
+
+**🛠️ Languages & Tools:** `C`
 
 ---
 
 ## 📁 TU_Graz_computer_systems_project
 
 This folder contains projects related to **Computer Systems, Networks, and LLM Security**.
-
-Instead of duplicating repositories, each project is referenced via a text file:
-
-- `GitHub_link.txt` — contains a direct link to the corresponding GitHub repository
 
 ### 🔐 LLM Friend or Foe — Guardrail Pipeline for LLM Safety
 
@@ -43,19 +41,16 @@ The system analyzes each user query before responding by:
 - applying a safety policy (ALLOW / SAFE_COMPLETE / REFUSE),
 - generating only **non-actionable, safe responses**.
 
-The project was developed as part of the course  
-**“LLM – Friend or Foe: Security Risks & Defences”** and focuses on **LLM safety, misuse prevention, and explainable defensive design**.
+The project was developed as part of the course
+**"LLM – Friend or Foe: Security Risks & Defences"** and focuses on **LLM safety, misuse prevention, and explainable defensive design**.
 
-📎 The full implementation is available via the GitHub link in this folder.
+**🛠️ Language** `Python`
 
 ---
 
 ## 📁 TU_Graz_stats_project
 
 This folder includes projects related to **statistics, data analysis, and quantitative methods**.
-
-Project repositories are linked via:
-- `GitHub_link.txt` — direct link to the full project repository
 
 ### 📊 CMS Project — Salary Analysis in AI and Data Science
 
@@ -77,21 +72,55 @@ The project demonstrates:
 - hypothesis testing,
 - robustness analysis using resampling methods.
 
-📎 The full implementation and code are available via the GitHub link in this folder.
+**🛠️ Language:** `Python`
 
 ---
 
-## ℹ️ Notes
+## 📁 TU_Graz_computational_social_systems
 
-- Some university projects are stored in separate repositories due to course regulations.
-- This portfolio repository serves as a **structured overview** of my work.
-- Each linked project contains its own documentation.
+This folder includes projects related to **agent-based modelling and social simulation**.
+
+### 🎲 Prisoner's Dilemma
+
+An agent-based simulation of the **Prisoner's Dilemma** implemented in Python using the Mesa framework. The project explores how cooperation and defection emerge in repeated interactions between agents.
+
+**🛠️ Languages & Tools:** `Python` · `Mesa` · `Jupyter Notebook`
+
+### 🌊 Threshold Cascade Project — Social Influence & AI Opinion Adoption
+
+This project combines the **Axelrod cultural diffusion model** with the **Granovetter threshold model** to simulate how opinions about AI spread through a population.
+
+Key aspects:
+- agents form cultural profiles via the Axelrod model,
+- opinion dynamics (Pro-AI / Neutral / Anti-AI) are governed by weighted similarity thresholds,
+- analysis includes tipping points, threshold sensitivity experiments, and opinion evolution over time.
+
+**🛠️ Languages & Tools:** `Python` · `Mesa` · `matplotlib` · `Jupyter Notebook`
+
+---
+
+## 📁 TU_Graz_forecasting_project
+
+This folder contains projects related to **macroeconomic forecasting**.
+
+### 📈 Forecasting Industrial Production Using FRED-MD Data
+
+This project forecasts the **U.S. Industrial Production Index (INDPRO)** using the FRED-MD macroeconomic database with an expanding-window evaluation framework.
+
+Forecasting methods compared:
+- AR(1), Random Walk
+- OLS, Ridge (BIC), Lasso (BIC)
+- Principal Component Regression (PCR)
+
+Key findings: Ridge regression achieved the lowest RMSE, outperforming OLS and simple benchmarks.
+
+**🛠️ Languages & Tools:** `R` · `glmnet` · `ggplot2`
 
 ---
 
 ## 👤 Author
 
-**Dinmukhamed Atabay**  
+**Dinmukhamed Atabay**
 Software Engineering Student at TU Graz
 
-**My instagram: @ata3ay**
+**My Instagram: @ata3ay**
